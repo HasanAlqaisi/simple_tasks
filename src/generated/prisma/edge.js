@@ -144,6 +144,10 @@ const config = {
         "fromEnvVar": null,
         "value": "darwin-arm64",
         "native": true
+      },
+      {
+        "fromEnvVar": null,
+        "value": "debian-openssl-3.0.x"
       }
     ],
     "previewFeatures": [],
@@ -170,8 +174,8 @@ const config = {
       }
     }
   },
-  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\n// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?\n// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init\n\ngenerator client {\n  provider = \"prisma-client-js\"\n  output   = \"../src/generated/prisma\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel User {\n  id       Int    @id @default(autoincrement())\n  email    String @unique\n  password String\n  image    String @default(\"\")\n  tasks    Task[]\n}\n\nmodel Task {\n  id        Int     @id @default(autoincrement())\n  title     String\n  date      String\n  isChecked Boolean\n  user      User    @relation(fields: [userId], references: [id])\n  userId    Int\n}\n",
-  "inlineSchemaHash": "661f53e316ad4ede169d14d48f581a057913f180f2870b3ca9b60537ae94ec6b",
+  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\n// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?\n// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init\n\ngenerator client {\n  provider      = \"prisma-client-js\"\n  output        = \"../src/generated/prisma\"\n  binaryTargets = [\"native\", \"debian-openssl-3.0.x\"]\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel User {\n  id       Int    @id @default(autoincrement())\n  email    String @unique\n  password String\n  image    String @default(\"\")\n  tasks    Task[]\n}\n\nmodel Task {\n  id        Int     @id @default(autoincrement())\n  title     String\n  date      String\n  isChecked Boolean\n  user      User    @relation(fields: [userId], references: [id])\n  userId    Int\n}\n",
+  "inlineSchemaHash": "c646549a427e332831862ef7346792e185c0920f6e8dad9943fed7ebf30b74a5",
   "copyEngine": true
 }
 config.dirname = '/'
