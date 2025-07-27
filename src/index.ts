@@ -2,7 +2,7 @@ import { Elysia, t } from 'elysia';
 import { swagger } from '@elysiajs/swagger';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { PrismaClient } from '../src/generated/prisma';
+import { PrismaClient } from './generated/prisma';
 
 const prisma = new PrismaClient();
 const PORT = 3000;
