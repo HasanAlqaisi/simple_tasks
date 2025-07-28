@@ -55,16 +55,16 @@ const app = new Elysia()
   .post('/login', async ({ body, status }) => {
     const { email, password } = body as { email: string; password: string };
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) return status(401, { error: 'Invalid credentials' });
+    if (!user) return status(400, { error: 'Invalid credentials' });
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid) return status(401, { error: 'Invalid credentials' });
+    if (!valid) return status(400, { error: 'Invalid credentials' });
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
     return { token };
   }, {
     body: t.Object({ email: t.String(), password: t.String() }),
     response: {
       200: t.Object({ token: t.String() }),
-      401: t.Object({ error: t.String() })
+      400: t.Object({ error: t.String() })
     }
   })
 
