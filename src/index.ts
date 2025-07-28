@@ -34,47 +34,48 @@ const app = new Elysia()
     }
   }))
   // Register
-  .post('/register', async ({ body }) => {
+  .post('/register', async ({ body, status }) => {
     const { email, password } = body as { email: string; password: string };
-    if (!email || !password) return { error: 'Email and password required' };
+    if (!email || !password) return status(400, { error: 'Email and password required' });
     const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) return { error: 'User exists' };
+    if (existing) return status(409, { error: 'User exists' });
     const hashedPassword = await bcrypt.hash(password, 10);
     await prisma.user.create({ data: { email, password: hashedPassword, image: '' } });
     return { message: 'Registered successfully' };
   }, {
     body: t.Object({ email: t.String(), password: t.String() }),
-    response: t.Union([
-      t.Object({ message: t.String() }),
-      t.Object({ error: t.String() })
-    ])
+    response: {
+      200: t.Object({ message: t.String() }),
+      400: t.Object({ error: t.String() }),
+      409: t.Object({ error: t.String() })
+    }
   })
 
   // Login
-  .post('/login', async ({ body }) => {
+  .post('/login', async ({ body, status }) => {
     const { email, password } = body as { email: string; password: string };
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) return { error: 'Invalid credentials' };
+    if (!user) return status(401, { error: 'Invalid credentials' });
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid) return { error: 'Invalid credentials' };
+    if (!valid) return status(401, { error: 'Invalid credentials' });
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
     return { token };
   }, {
     body: t.Object({ email: t.String(), password: t.String() }),
-    response: t.Union([
-      t.Object({ token: t.String() }),
-      t.Object({ error: t.String() })
-    ])
+    response: {
+      200: t.Object({ token: t.String() }),
+      401: t.Object({ error: t.String() })
+    }
   })
 
   // Create Task
-  .post('/tasks', async ({ body, headers }) => {
+  .post('/tasks', async ({ body, headers, status }) => {
     const authHeader = headers['authorization'];
     const token = authHeader?.split(' ')[1];
     const userPayload = getUserFromToken(token);
-    if (!userPayload) return { error: 'Unauthorized' };
+    if (!userPayload) return status(401, { error: 'Unauthorized' });
     const { title, date, isChecked } = body as { title: string; date: string; isChecked: boolean };
-    if (!title || !date || typeof isChecked !== 'boolean') return { error: 'Invalid task data' };
+    if (!title || !date || typeof isChecked !== 'boolean') return status(400, { error: 'Invalid task data' });
     const task = await prisma.task.create({
       data: {
         title,
@@ -86,8 +87,8 @@ const app = new Elysia()
     return { task };
   }, {
     body: t.Object({ title: t.String(), date: t.String(), isChecked: t.Boolean() }),
-    response: t.Union([
-      t.Object({
+    response: {
+      200: t.Object({
         task: t.Object({
           id: t.Number(),
           userId: t.Number(),
@@ -96,16 +97,17 @@ const app = new Elysia()
           isChecked: t.Boolean()
         })
       }),
-      t.Object({ error: t.String() })
-    ])
+      400: t.Object({ error: t.String() }),
+      401: t.Object({ error: t.String() })
+    }
   })
 
   // Fetch Tasks (with filter)
-  .get('/tasks', async ({ headers, query }) => {
+  .get('/tasks', async ({ headers, query, status }) => {
     const authHeader = headers['authorization'];
     const token = authHeader?.split(' ')[1];
     const userPayload = getUserFromToken(token);
-    if (!userPayload) return { error: 'Unauthorized' };
+    if (!userPayload) return status(401, { error: 'Unauthorized' });
     const { date, search } = query as { date?: string; search?: string };
     let where: any = { userId: userPayload.id };
     if (date) where.date = date;
@@ -114,8 +116,8 @@ const app = new Elysia()
     return { tasks };
   }, {
     query: t.Object({ date: t.Optional(t.String()), search: t.Optional(t.String()) }),
-    response: t.Union([
-      t.Object({
+    response: {
+      200: t.Object({
         tasks: t.Array(
           t.Object({
             id: t.Number(),
@@ -126,19 +128,19 @@ const app = new Elysia()
           })
         )
       }),
-      t.Object({ error: t.String() })
-    ])
+      401: t.Object({ error: t.String() })
+    }
   })
 
   // Patch Task
-  .patch('/tasks/:id', async ({ headers, body, params }) => {
+  .patch('/tasks/:id', async ({ headers, body, params, status }) => {
     const authHeader = headers['authorization'];
     const token = authHeader?.split(' ')[1];
     const userPayload = getUserFromToken(token);
-    if (!userPayload) return { error: 'Unauthorized' };
+    if (!userPayload) return status(401, { error: 'Unauthorized' });
     const id = Number(params.id);
     const task = await prisma.task.findUnique({ where: { id } });
-    if (!task || task.userId !== userPayload.id) return { error: 'Task not found' };
+    if (!task || task.userId !== userPayload.id) return status(404, { error: 'Task not found' });
     const { title, date, isChecked } = body as { title?: string; date?: string; isChecked?: boolean };
     const updated = await prisma.task.update({
       where: { id },
@@ -156,8 +158,8 @@ const app = new Elysia()
       date: t.Optional(t.String()),
       isChecked: t.Optional(t.Boolean())
     }),
-    response: t.Union([
-      t.Object({
+    response: {
+      200: t.Object({
         task: t.Object({
           id: t.Number(),
           userId: t.Number(),
@@ -166,26 +168,27 @@ const app = new Elysia()
           isChecked: t.Boolean()
         })
       }),
-      t.Object({ error: t.String() })
-    ])
+      401: t.Object({ error: t.String() }),
+      404: t.Object({ error: t.String() })
+    }
   })
 
   // Profile
-  .get('/profile', async ({ headers }) => {
+  .get('/profile', async ({ headers, status }) => {
     const authHeader = headers['authorization'];
     const token = authHeader?.split(' ')[1];
     const userPayload = getUserFromToken(token);
-    if (!userPayload) return { error: 'Unauthorized' };
+    if (!userPayload) return status(401, { error: 'Unauthorized' });
     const user = await prisma.user.findUnique({ where: { id: userPayload.id }, include: { tasks: true } });
-    if (!user) return { error: 'User not found' };
+    if (!user) return status(404, { error: 'User not found' });
     const stats = {
       total: user.tasks.length,
       completed: user.tasks.filter((task: { isChecked: boolean }) => task.isChecked).length
     };
     return { email: user.email, image: user.image, stats };
   }, {
-    response: t.Union([
-      t.Object({
+    response: {
+      200: t.Object({
         email: t.String(),
         image: t.String(),
         stats: t.Object({
@@ -193,20 +196,21 @@ const app = new Elysia()
           completed: t.Number()
         })
       }),
-      t.Object({ error: t.String() })
-    ])
+      401: t.Object({ error: t.String() }),
+      404: t.Object({ error: t.String() })
+    }
   })
 
-  .post('/profile/image', async ({ headers, body }) => {
+  .post('/profile/image', async ({ headers, body, status }) => {
     const authHeader = headers['authorization'];
     const token = authHeader?.split(' ')[1];
     const userPayload = getUserFromToken(token);
-    if (!userPayload) return { error: 'Unauthorized' };
+    if (!userPayload) return status(401, { error: 'Unauthorized' });
 
     // Accept file upload
     const file = body.image;
     if (!file || !file.name) {
-      return { error: 'No image file uploaded' };
+      return status(400, { error: 'No image file uploaded' });
     }
 
     // Ensure uploads directory exists
@@ -235,10 +239,11 @@ const app = new Elysia()
         maxSize: 5 * 1024 * 1024 // 5MB
       })
     }),
-    response: t.Union([
-      t.Object({ message: t.String(), image: t.String() }),
-      t.Object({ error: t.String() })
-    ])
+    response: {
+      200: t.Object({ message: t.String(), image: t.String() }),
+      400: t.Object({ error: t.String() }),
+      401: t.Object({ error: t.String() })
+    }
   })
 
   .listen(PORT);
