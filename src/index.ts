@@ -33,37 +33,35 @@ const app = new Elysia()
       }
     }
   }))
-  // Register
-  .post('/register', async ({ body, status }) => {
-    const { email, password } = body as { email: string; password: string };
-    if (!email || !password) return status(400, { error: 'Email and password required' });
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) return status(409, { error: 'User exists' });
-    const hashedPassword = await bcrypt.hash(password, 10);
-    await prisma.user.create({ data: { email, password: hashedPassword, image: '' } });
-    return { message: 'Registered successfully' };
-  }, {
-    body: t.Object({ email: t.String(), password: t.String() }),
-    response: {
-      200: t.Object({ message: t.String() }),
-      400: t.Object({ error: t.String() }),
-      409: t.Object({ error: t.String() })
-    }
-  })
-
-  // Login
+  // Login/Register (Auto-register if user doesn't exist)
   .post('/login', async ({ body, status }) => {
     const { email, password } = body as { email: string; password: string };
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) return status(400, { error: 'Invalid credentials' });
-    const valid = await bcrypt.compare(password, user.password);
-    if (!valid) return status(400, { error: 'Invalid credentials' });
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
-    return { token };
+    if (!email || !password) return status(400, { error: 'Email and password required' });
+
+    // Check if user exists
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+
+    if (!existingUser) {
+      // User doesn't exist - register them
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const newUser = await prisma.user.create({
+        data: { email, password: hashedPassword, image: '' }
+      });
+      const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '1h' });
+      return { token };
+    } else {
+      // User exists - verify password and login
+      const valid = await bcrypt.compare(password, existingUser.password);
+      if (!valid) return status(400, { error: 'Invalid credentials' });
+      const token = jwt.sign({ id: existingUser.id, email: existingUser.email }, JWT_SECRET, { expiresIn: '1h' });
+      return { token };
+    }
   }, {
     body: t.Object({ email: t.String(), password: t.String() }),
     response: {
-      200: t.Object({ token: t.String() }),
+      200: t.Object({
+        token: t.String(),
+      }),
       400: t.Object({ error: t.String() })
     }
   })
@@ -219,7 +217,7 @@ const app = new Elysia()
     const uploadsDir = path.join(process.cwd(), 'uploads');
     try {
       await fs.mkdir(uploadsDir, { recursive: true });
-    } catch {}
+    } catch { }
 
     // Generate unique filename
     const ext = path.extname(file.name);
