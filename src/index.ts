@@ -47,13 +47,13 @@ const app = new Elysia()
       const newUser = await prisma.user.create({
         data: { email, password: hashedPassword, image: '' }
       });
-      const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '1h' });
+      const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '7d' });
       return { token };
     } else {
       // User exists - verify password and login
       const valid = await bcrypt.compare(password, existingUser.password);
       if (!valid) return status(400, { error: 'Invalid credentials' });
-      const token = jwt.sign({ id: existingUser.id, email: existingUser.email }, JWT_SECRET, { expiresIn: '1h' });
+      const token = jwt.sign({ id: existingUser.id, email: existingUser.email }, JWT_SECRET, { expiresIn: '7d' });
       return { token };
     }
   }, {
