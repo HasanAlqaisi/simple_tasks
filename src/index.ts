@@ -171,6 +171,47 @@ const app = new Elysia()
     }
   })
 
+  // Delete Single Task
+  .delete('/tasks/:id', async ({ headers, params, status }) => {
+    const authHeader = headers['authorization'];
+    const token = authHeader?.split(' ')[1];
+    const userPayload = getUserFromToken(token);
+    if (!userPayload) return status(401, { error: 'Unauthorized' });
+    
+    const id = Number(params.id);
+    const task = await prisma.task.findUnique({ where: { id } });
+    if (!task || task.userId !== userPayload.id) return status(404, { error: 'Task not found' });
+    
+    await prisma.task.delete({ where: { id } });
+    return { message: 'Task deleted successfully' };
+  }, {
+    params: t.Object({ id: t.String() }),
+    response: {
+      200: t.Object({ message: t.String() }),
+      401: t.Object({ error: t.String() }),
+      404: t.Object({ error: t.String() })
+    }
+  })
+
+  // Delete All Tasks
+  .delete('/tasks', async ({ headers, status }) => {
+    const authHeader = headers['authorization'];
+    const token = authHeader?.split(' ')[1];
+    const userPayload = getUserFromToken(token);
+    if (!userPayload) return status(401, { error: 'Unauthorized' });
+    
+    const deletedCount = await prisma.task.deleteMany({ where: { userId: userPayload.id } });
+    return { message: 'All tasks deleted successfully', deletedCount: deletedCount.count };
+  }, {
+    response: {
+      200: t.Object({ 
+        message: t.String(), 
+        deletedCount: t.Number() 
+      }),
+      401: t.Object({ error: t.String() })
+    }
+  })
+
   // Profile
   .get('/profile', async ({ headers, status }) => {
     const authHeader = headers['authorization'];
