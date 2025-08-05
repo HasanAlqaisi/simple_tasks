@@ -109,7 +109,7 @@ const app = new Elysia()
     const { date, search } = query as { date?: string; search?: string };
     let where: any = { userId: userPayload.id };
     if (date) where.date = date;
-    if (search) where.title = { contains: search, mode: 'insensitive' };
+    if (search) where.title = { contains: search };
     const tasks = await prisma.task.findMany({ where });
     return { tasks };
   }, {
